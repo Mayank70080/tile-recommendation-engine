@@ -4,15 +4,7 @@ __pycache__/
 *.egg-info/
 .env
 .DS_Store
-_synccheck.py
-analyze_coverage.py
-generate_recommendations.py
-shade_pairs_recommendation.csv
-family_pairs_recommendation.csv
-application_image_tags.csv
-NEW_CHAT_PROMPT.md
 .venv/
 venv/
-*.egg-info/
 dist/
 build/
