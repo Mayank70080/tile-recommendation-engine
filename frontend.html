@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tile Recommendation Tester</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color: #1a1a1a;
+      min-height: 100vh;
+    }
+
+    /* ═══════════════════════════════════════════════════
+       TESTER SECTION — remove before production
+    ═══════════════════════════════════════════════════ */
+    #tester-section {
+      background: #fff;
+      border-bottom: 2px dashed #e0d9cf;
+      padding: 24px 32px 28px;
+    }
+
+    .tester-badge {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: #fff;
+      background: #e07b3a;
+      padding: 3px 8px;
+      border-radius: 3px;
+      margin-bottom: 16px;
+    }
+
+    .tester-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: #1a1a1a;
+      margin-bottom: 20px;
+    }
+
+    .field-label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      color: #888;
+      margin-bottom: 6px;
+    }
+
+    /* Search */
+    .search-wrap {
+      position: relative;
+      max-width: 520px;
+      margin-bottom: 20px;
+    }
+
+    #search-input {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1px solid #d4cec5;
+      border-radius: 6px;
+      background: #faf8f5;
+      font-size: 14px;
+      color: #1a1a1a;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    #search-input:focus { border-color: #888; background: #fff; }
+
+    #autocomplete {
+      position: absolute;
+      top: calc(100% + 3px);
+      left: 0; right: 0;
+      background: #fff;
+      border: 1px solid #d4cec5;
+      border-radius: 8px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.10);
+      max-height: 280px;
+      overflow-y: auto;
+      z-index: 200;
+      display: none;
+    }
+
+    .ac-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 12px;
+      cursor: pointer;
+      border-bottom: 1px solid #f0ede8;
+      transition: background 0.1s;
+    }
+    .ac-item:last-child { border-bottom: none; }
+    .ac-item:hover { background: #faf8f5; }
+
+    .ac-thumb {
+      width: 38px; height: 38px;
+      object-fit: contain;
+      border-radius: 4px;
+      background: #f0ede8;
+      flex-shrink: 0;
+    }
+
+    .ac-name { font-size: 13px; font-weight: 500; }
+    .ac-meta { font-size: 11px; color: #999; margin-top: 2px; }
+
+    /* Input tile card */
+    #input-card-wrap { max-width: 520px; display: none; }
+
+    .input-card {
+      display: flex;
+      gap: 14px;
+      background: #faf8f5;
+      border: 1px solid #d4cec5;
+      border-radius: 8px;
+      padding: 12px;
+      align-items: flex-start;
+    }
+
+    .input-card img {
+      width: 80px; height: 80px;
+      object-fit: contain;
+      border-radius: 5px;
+      background: #ede9e2;
+      flex-shrink: 0;
+    }
+
+    .input-card-name { font-size: 13px; font-weight: 600; line-height: 1.4; margin-bottom: 7px; }
+
+    .tag {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 500;
+      padding: 2px 8px;
+      border-radius: 20px;
+      background: #ede9e2;
+      color: #555;
+      margin-right: 4px;
+      margin-bottom: 4px;
+    }
+    .tag.cat  { background: #e3dff5; color: #4a3f8a; }
+    .tag.room { background: #d8f0e2; color: #276644; }
+
+    /* Spinner */
+    #spinner {
+      display: none;
+      font-size: 13px;
+      color: #999;
+      padding: 12px 0 4px;
+    }
+
+    /* ═══════════════════════════════════════════════════
+       PRODUCT RECOMMENDATIONS WIDGET
+       This section goes on the actual product page
+    ═══════════════════════════════════════════════════ */
+    #rec-widget {
+      display: none;
+      margin: 40px 18px;
+      background: #f5f0e8;
+    }
+
+    /* Padded inner area — heading, tabs, description */
+    .rec-inner {
+      padding: 32px 16px 24px;
+    }
+
+    /* Heading — matches "Product Insights" style */
+    .rec-heading {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .rec-heading-bar {
+      width: 4px;
+      height: 28px;
+      background: #f0b429;
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+
+    .rec-heading h2 {
+      font-size: 22px;
+      font-weight: 700;
+      color: #1a1a1a;
+      letter-spacing: -0.3px;
+    }
+
+    /* Tabs — pill buttons matching Product Insights style */
+    .rec-tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 22px;
+    }
+
+    .rec-tab {
+      padding: 8px 22px;
+      font-size: 13px;
+      font-weight: 500;
+      color: #1a1a1a;
+      background: #fff;
+      border: 1px solid #d4cec5;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+      letter-spacing: 0.1px;
+    }
+
+    .rec-tab:hover:not(.active) {
+      border-color: #999;
+    }
+
+    .rec-tab.active {
+      background: #1a1a1a;
+      color: #fff;
+      border-color: #1a1a1a;
+      font-weight: 600;
+      position: relative;
+    }
+
+    .rec-tab.active::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 28px;
+      height: 2px;
+      background: #f0b429;
+      border-radius: 1px;
+    }
+
+    .rec-tab:disabled {
+      opacity: 0.35;
+      cursor: default;
+    }
+
+    /* Sub-tabs — secondary toggle (Highlighter/Base Wall or Floor/Base Wall) */
+    .rec-subtabs {
+      display: none;
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+
+    .rec-subtab {
+      padding: 6px 16px;
+      font-size: 12px;
+      font-weight: 500;
+      color: #555;
+      background: transparent;
+      border: 1px solid #d4cec5;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+
+    .rec-subtab:hover:not(.active) {
+      border-color: #999;
+    }
+
+    .rec-subtab.active {
+      background: #f0b429;
+      color: #1a1a1a;
+      border-color: #f0b429;
+      font-weight: 600;
+    }
+
+    .rec-subtab:disabled {
+      opacity: 0.35;
+      cursor: default;
+    }
+
+    /* Description paragraph */
+    .rec-description {
+      font-size: 14px;
+      line-height: 1.75;
+      color: #555;
+      margin-bottom: 28px;
+    }
+
+    /* No recs */
+    #no-recs {
+      font-size: 14px;
+      color: #999;
+      padding: 20px 0;
+      display: none;
+    }
+
+    /* ── Carousel ──────────────────────────────────────── */
+    /* carousel-outer spans full widget width; arrows sit in the side padding */
+    .carousel-outer {
+      position: relative;
+      padding: 0 44px 36px;  /* 44px = 3px outer + 34px arrow + 7px gap to track */
+    }
+
+    .carousel-track-clip {
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    .carousel-track {
+      display: flex;
+      gap: 12px;
+      transition: transform 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    }
+
+    /* Separator card — sits between highlighter and base groups */
+    .carousel-separator {
+      flex: 0 0 160px;   /* overridden by JS */
+      background: #e8e0d5;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 16px 12px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+      cursor: default;
+      flex-shrink: 0;
+    }
+
+    .carousel-separator-bar {
+      width: 3px;
+      height: 36px;
+      background: #f0b429;
+      border-radius: 2px;
+    }
+
+    .carousel-separator-label {
+      font-size: 12px;
+      font-weight: 700;
+      color: #1a1a1a;
+      text-align: center;
+      line-height: 1.4;
+      letter-spacing: 0.3px;
+    }
+
+    /* Product card — width set by JS based on actual clip width */
+    .product-card {
+      flex: 0 0 160px;     /* fallback; overridden by JS */
+      background: #fff;
+      border-radius: 8px;
+      overflow: hidden;
+      cursor: pointer;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+      transition: box-shadow 0.2s, transform 0.2s;
+    }
+
+    .product-card:hover {
+      box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+      transform: translateY(-2px);
+    }
+
+    /* Image — full bleed, no padding */
+    .product-card-img-wrap {
+      aspect-ratio: 1/1;
+      background: #f0ebe3;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .product-card-img-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transition: transform 0.3s ease;
+    }
+
+    .product-card:hover .product-card-img-wrap img {
+      transform: scale(1.03);
+    }
+
+    /* Card body */
+    .product-card-body {
+      padding: 9px 10px 11px;
+      background: #fff;
+    }
+
+    /* Collection row: category name + tile code */
+    .product-card-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+
+    .product-card-collection {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: #999;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 65%;
+    }
+
+    .product-card-code {
+      font-size: 9px;
+      color: #bbb;
+      letter-spacing: 0.3px;
+      flex-shrink: 0;
+    }
+
+    .product-card-name {
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1.4;
+      color: #1a1a1a;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      min-height: 34px;
+      margin-bottom: 4px;
+    }
+
+    .product-card-size {
+      font-size: 10px;
+      color: #aaa;
+    }
+
+    /* Arrows — absolute in the side padding, centred on the image height */
+    .carousel-btn {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 34px; height: 34px;
+      border-radius: 50%;
+      border: 1px solid #d4cec5;
+      background: #fff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+      transition: box-shadow 0.15s;
+      color: #1a1a1a;
+      z-index: 10;
+    }
+
+    #btn-prev { left: 3px; }
+    #btn-next { right: 3px; }
+
+    .carousel-btn svg {
+      width: 14px; height: 14px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .carousel-btn:hover:not(:disabled) {
+      box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+    }
+
+    .carousel-btn:disabled { opacity: 0.25; cursor: default; }
+  </style>
+</head>
+<body>
+
+  <!-- ══════════════════════════════════════════════════
+       TESTER SECTION — keep for development, remove for production
+  ══════════════════════════════════════════════════ -->
+  <div id="tester-section">
+    <div class="tester-badge">Tester — Remove before production</div>
+    <div class="tester-title">Tile Recommendation Tester</div>
+
+    <div class="search-wrap">
+      <label class="field-label" for="search-input">Search tile by name or handle</label>
+      <input id="search-input" type="text" placeholder="e.g. moroccan, plain, subway…" autocomplete="off" />
+      <div id="autocomplete"></div>
+    </div>
+
+    <div id="input-card-wrap">
+      <label class="field-label">Selected tile</label>
+      <div class="input-card">
+        <img id="input-img" src="" alt="tile" onerror="this.style.visibility='hidden'" />
+        <div>
+          <div class="input-card-name" id="input-name">—</div>
+          <div id="input-tags"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="spinner">Loading recommendations…</div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════
+       PRODUCT RECOMMENDATIONS WIDGET
+       Final design — goes on the actual product page
+  ══════════════════════════════════════════════════ -->
+  <div id="rec-widget">
+
+    <!-- Padded content: heading, tabs, description -->
+    <div class="rec-inner">
+      <div class="rec-heading">
+        <div class="rec-heading-bar"></div>
+        <h2>Product Recommendations</h2>
+      </div>
+      <div class="rec-tabs">
+        <button class="rec-tab active" data-room="bathroom" onclick="switchRoom('bathroom')">Bathroom</button>
+        <button class="rec-tab"        data-room="kitchen"  onclick="switchRoom('kitchen')">Kitchen</button>
+        <button class="rec-tab"        data-room="outdoor"  onclick="switchRoom('outdoor')">Outdoors</button>
+      </div>
+      <div class="rec-subtabs" id="rec-subtabs">
+        <button class="rec-subtab active" data-group="group1" onclick="switchSubTab('group1')"></button>
+        <button class="rec-subtab"        data-group="group2" onclick="switchSubTab('group2')"></button>
+        <button class="rec-subtab"        data-group="group3" onclick="switchSubTab('group3')"></button>
+      </div>
+      <p class="rec-description" id="rec-description"></p>
+      <div id="no-recs">No recommendations available for this tile in the selected room.</div>
+    </div>
+
+    <!-- Carousel: full widget width, arrows in the side padding -->
+    <div class="carousel-outer" id="carousel-outer" style="display:none">
+      <button class="carousel-btn" id="btn-prev" onclick="slideCarousel(-1)">
+        <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div class="carousel-track-clip">
+        <div class="carousel-track" id="carousel-track"></div>
+      </div>
+      <button class="carousel-btn" id="btn-next" onclick="slideCarousel(1)">
+        <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    </div>
+
+  </div>
+
+  <script>
+    const API         = '';
+    const CARDS_SHOWN = 5.5;   // cards visible (5 full + half of 6th)
+    const VISIBLE     = 5;     // full cards visible — used for maxOff calc
+    const GAP         = 12;
+
+    const DESCRIPTIONS = {
+      moroccan:  "One of Pinterest's most-loved tile styles, Moroccan patterns shine when paired with calm, tonal surfaces that let every detail stand out. Here are some options that designers recommend with the selected variant.",
+      geometric: "Pair geometric patterns with plain surfaces for a clean, contemporary look, or add decorative accents for a more expressive design statement. These selections are commonly paired together by interior designers.",
+      rustic:    "Rustic textures, subway accents and botanical details combine to create one of Pinterest's most saved interior looks. These selections are commonly paired together by interior designers.",
+      subway:    "From modern bathrooms to stylish kitchens, subway-inspired combinations continue to dominate Pinterest boards worldwide. These selections are commonly paired together by interior designers.",
+      "subway look": "From modern bathrooms to stylish kitchens, subway-inspired combinations continue to dominate Pinterest boards worldwide. These selections are commonly paired together by interior designers.",
+      tropical:  "Tropical patterns bring colour, freshness and personality, making them a favourite in Pinterest-inspired spaces. These selections are commonly paired together by interior designers.",
+      floral:    "Floral designs add softness and character, helping create Pinterest-worthy spaces that feel warm and inviting. These selections are commonly paired together by interior designers.",
+      wooden:    "Inspired by natural materials, wooden-look tiles bring warmth and comfort while pairing effortlessly with modern surfaces. Here are some options that designers recommend with the selected variant.",
+      plain:     "The foundation of countless designer spaces, plain surfaces offer endless possibilities for layering colour, texture and style. Here are some options that designers recommend with the selected variant.",
+      marble:    "Pair marble-inspired surfaces with plain tiles for timeless elegance, or introduce subtle accents to create a richer, luxury-inspired space. These selections are commonly paired together by interior designers.",
+      endless:   "Pair marble-inspired surfaces with plain tiles for timeless elegance, or introduce subtle accents to create a richer, luxury-inspired space. These selections are commonly paired together by interior designers.",
+      terrazzo:  "Pair terrazzo with subway surfaces for a clean and balanced look, or combine it with tropical and floral accents for a bold, Pinterest-inspired design. Here are some options that designers recommend with the selected variant.",
+      generic:   "Explore versatile designer combinations curated to help create balanced and visually appealing wall designs. Handpicked options that complement the selected variant.",
+      outdoor:   "Built for terraces, balconies and parking areas, these outdoor pairings combine durable floor and wall tiles for a coordinated exterior look. Handpicked options that complement the selected variant."
+    };
+
+    let currentHandle   = null;
+    let currentCategory = '';
+    let currentAppType  = '';
+    let currentRecs     = { bathroom: {}, kitchen: {}, outdoor: {} };
+    let currentRoom     = 'bathroom';
+    let currentSubTab   = 'group1';
+    let currentGroups   = { group1: [], group2: [] };
+    let carouselOffset  = 0;
+    let searchTimer     = null;
+
+    // Placement groups & display labels, in display order, per room.
+    const GROUP_DEFS = {
+      bathroom: [['floor', 'Floor'], ['base', 'Base'], ['highlighter', 'Highlighter']],
+      kitchen:  [['floor', 'Floor'], ['backsplash', 'Backsplash']],
+      outdoor:  [['outdoor', 'Outdoors']],
+    };
+
+    // True if a room's grouped recs object has any tiles in any group.
+    function roomHasTiles(roomObj) {
+      return Object.values(roomObj || {}).some(arr => arr && arr.length);
+    }
+
+    // Returns true if the input tile uses a floor-type input group
+    function isFloorInput(category, appType) {
+      const cat = (category || '').toLowerCase();
+      const app = (appType  || '').toLowerCase();
+      const wallCats = new Set(['moroccan','decor','tropical','floral','subway','subway look','mosaic','geometric','highlighter']);
+      if (wallCats.has(cat)) return false;
+      if (cat === 'marble' || cat === 'endless' || cat === 'rustic') return app !== 'wall';
+      return true; // wooden, terrazzo, plain, others → floor
+    }
+
+    function tileCardHTML(v) {
+      if (!v) return `
+        <div class="product-card carousel-item">
+          <div class="product-card-img-wrap"></div>
+          <div class="product-card-body">
+            <div class="product-card-name" style="color:#ccc">—</div>
+          </div>
+        </div>`;
+      return `
+        <div class="product-card carousel-item" data-handle="${v.handle}">
+          <div class="product-card-img-wrap">
+            <img src="${v.image_url || ''}" alt="${v.product_name}"
+                 onerror="this.parentElement.style.background='#ede9e2'" loading="lazy" />
+          </div>
+          <div class="product-card-body">
+            <div class="product-card-meta">
+              <span class="product-card-collection">${v.category.toUpperCase()}</span>
+              <span class="product-card-code">${v.handle.substring(0,10).toUpperCase()}</span>
+            </div>
+            <div class="product-card-name">${v.product_name}</div>
+            <div class="product-card-size">${v.size} mm</div>
+          </div>
+        </div>`;
+    }
+
+    function separatorCardHTML(label) {
+      return `
+        <div class="carousel-separator carousel-item">
+          <div class="carousel-separator-bar"></div>
+          <div class="carousel-separator-label">${label}</div>
+        </div>`;
+    }
+
+    /* ── Autocomplete ──────────────────────────── */
+    const searchInput = document.getElementById('search-input');
+    const acBox       = document.getElementById('autocomplete');
+
+    searchInput.addEventListener('input', () => {
+      clearTimeout(searchTimer);
+      const q = searchInput.value.trim();
+      if (q.length < 2) { acBox.style.display = 'none'; return; }
+      searchTimer = setTimeout(() => fetchSuggestions(q), 280);
+    });
+
+    searchInput.addEventListener('blur', () => {
+      setTimeout(() => { acBox.style.display = 'none'; }, 180);
+    });
+
+    async function fetchSuggestions(q) {
+      try {
+        const res  = await fetch(`${API}/variants/search?q=${encodeURIComponent(q)}&limit=15`);
+        const data = await res.json();
+        renderSuggestions(data.results || []);
+      } catch(e) { acBox.style.display = 'none'; }
+    }
+
+    function renderSuggestions(items) {
+      if (!items.length) { acBox.style.display = 'none'; return; }
+      acBox.innerHTML = items.map(v => `
+        <div class="ac-item" onmousedown="selectTile('${v.handle}')">
+          <img class="ac-thumb" src="${v.image_url || ''}" alt=""
+               onerror="this.style.visibility='hidden'" />
+          <div>
+            <div class="ac-name">${v.product_name}</div>
+            <div class="ac-meta">${v.category} · ${v.size}</div>
+          </div>
+        </div>`).join('');
+      acBox.style.display = 'block';
+    }
+
+    /* ── Select tile ───────────────────────────── */
+    async function selectTile(handle) {
+      acBox.style.display = 'none';
+      currentHandle  = handle;
+      carouselOffset = 0;
+
+      document.getElementById('spinner').style.display = 'block';
+      document.getElementById('rec-widget').style.display = 'none';
+      document.getElementById('input-card-wrap').style.display = 'none';
+
+      try {
+        const [varRes, recRes] = await Promise.all([
+          fetch(`${API}/variant/${handle}`),
+          fetch(`${API}/recommendations/${handle}?limit=20`)
+        ]);
+        if (!varRes.ok || !recRes.ok) throw new Error('Not found');
+
+        const v   = await varRes.json();
+        const rec = await recRes.json();
+
+        searchInput.value = v.product_name;
+        renderInputCard(v, rec);
+
+        currentRecs = { bathroom: rec.bathroom || {}, kitchen: rec.kitchen || {}, outdoor: rec.outdoor || {} };
+        currentRoom = ['bathroom', 'kitchen', 'outdoor'].find(r => roomHasTiles(currentRecs[r])) || 'bathroom';
+
+        document.getElementById('spinner').style.display = 'none';
+        document.getElementById('rec-widget').style.display = 'block';
+
+        // Set up tabs
+        document.querySelectorAll('.rec-tab').forEach(b => {
+          b.classList.toggle('active', b.dataset.room === currentRoom);
+          b.disabled = !roomHasTiles(currentRecs[b.dataset.room]);
+        });
+
+        await renderRecs();
+
+      } catch(e) {
+        document.getElementById('spinner').style.display = 'none';
+        document.getElementById('rec-widget').style.display = 'block';
+        document.getElementById('no-recs').textContent = 'Could not load recommendations.';
+        document.getElementById('no-recs').style.display = 'block';
+        document.getElementById('carousel-outer').style.display = 'none';
+      }
+    }
+
+    function renderInputCard(v, rec) {
+      currentCategory = (v.category || '').toLowerCase();
+      currentAppType  = (v.application_type || '').toLowerCase();
+      document.getElementById('input-img').src = v.image_url || '';
+      document.getElementById('input-name').textContent = v.product_name;
+      const rooms = rec.eligible_rooms || [];
+      document.getElementById('input-tags').innerHTML =
+        `<span class="tag cat">${v.category}</span>` +
+        `<span class="tag">${v.application_type}</span>` +
+        `<span class="tag">${v.size}</span>` +
+        rooms.map(r => `<span class="tag room">${r}</span>`).join('');
+      document.getElementById('input-card-wrap').style.display = 'block';
+    }
+
+    /* ── Room switch ───────────────────────────── */
+    function switchRoom(room) {
+      currentRoom    = room;
+      currentSubTab  = 'group1';
+      carouselOffset = 0;
+      document.querySelectorAll('.rec-tab').forEach(b =>
+        b.classList.toggle('active', b.dataset.room === room));
+      renderRecs();
+    }
+
+    /* ── Sub-tab switch (Highlighter/Floor vs Base Wall) ── */
+    function switchSubTab(group) {
+      currentSubTab  = group;
+      carouselOffset = 0;
+      document.querySelectorAll('.rec-subtab').forEach(b =>
+        b.classList.toggle('active', b.dataset.group === group));
+      renderGroup();
+    }
+
+    /* ── Render carousel ───────────────────────── */
+    async function renderRecs() {
+      const roomObj = currentRecs[currentRoom] || {};   // { group: [handles] }
+
+      document.getElementById('rec-description').textContent =
+        currentRoom === 'outdoor'
+          ? DESCRIPTIONS['outdoor']
+          : (DESCRIPTIONS[currentCategory] || DESCRIPTIONS['generic']);
+
+      if (!roomHasTiles(roomObj)) {
+        document.getElementById('no-recs').textContent =
+          'No recommendations available for this tile in the selected room.';
+        document.getElementById('no-recs').style.display = 'block';
+        document.getElementById('carousel-outer').style.display = 'none';
+        document.getElementById('rec-subtabs').style.display = 'none';
+        return;
+      }
+
+      document.getElementById('no-recs').style.display = 'none';
+      document.getElementById('carousel-outer').style.display = 'block';
+
+      // Fetch variant details once for every recommended handle in this room.
+      const defs    = GROUP_DEFS[currentRoom] || [];
+      const handles = [...new Set(defs.flatMap(([key]) => roomObj[key] || []))];
+      const detailMap = {};
+      await Promise.all(handles.map(h =>
+        fetch(`${API}/variant/${h}`)
+          .then(r => r.ok ? r.json() : null).catch(() => null)
+          .then(v => { detailMap[h] = v; })
+      ));
+
+      // Build the sub-tab groups straight from the API's placement groups —
+      // no guessing by category or application_type.
+      const groups = defs
+        .map(([key, label]) => ({
+          label,
+          tiles: (roomObj[key] || []).map(h => detailMap[h]).filter(Boolean),
+        }))
+        .filter(g => g.tiles.length);
+
+      setupSubtabs(groups, groups.length > 1);
+      renderGroup();
+    }
+
+    /* ── Configure the sub-tab buttons for 2 or 3 groups ── */
+    function setupSubtabs(groups, forceShow) {
+      currentGroups = { group1: [], group2: [], group3: [] };
+      const keys    = ['group1', 'group2', 'group3'];
+      const subBtns = document.getElementById('rec-subtabs').querySelectorAll('.rec-subtab');
+      let nonEmptyCount = 0;
+
+      groups.forEach((g, i) => {
+        currentGroups[keys[i]] = g.tiles;
+        subBtns[i].textContent   = g.label;
+        subBtns[i].dataset.group = keys[i];
+        subBtns[i].disabled      = !g.tiles.length;
+        subBtns[i].style.display = '';
+        if (g.tiles.length) nonEmptyCount++;
+      });
+      for (let i = groups.length; i < subBtns.length; i++) {
+        subBtns[i].style.display = 'none';
+      }
+
+      // Pick a sensible default sub-tab if the current one is empty
+      if (!currentGroups[currentSubTab] || !currentGroups[currentSubTab].length) {
+        const firstNonEmpty = keys.slice(0, groups.length).find(k => currentGroups[k].length);
+        currentSubTab = firstNonEmpty || 'group1';
+      }
+      subBtns.forEach(b => b.classList.toggle('active', b.dataset.group === currentSubTab));
+
+      document.getElementById('rec-subtabs').style.display =
+        (nonEmptyCount > 1 || forceShow) ? 'flex' : 'none';
+    }
+
+    /* ── Render the currently-selected group into the carousel ── */
+    function renderGroup() {
+      const track = document.getElementById('carousel-track');
+      const tiles = currentGroups[currentSubTab] || [];
+
+      if (!tiles.length) {
+        document.getElementById('no-recs').textContent =
+          'No recommendations available for this tile in the selected category.';
+        document.getElementById('no-recs').style.display = 'block';
+        document.getElementById('carousel-outer').style.display = 'none';
+        return;
+      }
+
+      document.getElementById('no-recs').style.display = 'none';
+      document.getElementById('carousel-outer').style.display = 'block';
+
+      track.innerHTML = tiles.map(tileCardHTML).join('');
+
+      carouselOffset = 0;
+      setCardWidths();
+      updateCarousel();
+    }
+
+    /* ── Card width — 5.5 cards visible in the clip ── */
+    function setCardWidths() {
+      const clip = document.querySelector('.carousel-track-clip');
+      if (!clip) return;
+      const cardW = Math.floor((clip.offsetWidth - VISIBLE * GAP) / CARDS_SHOWN);
+      document.querySelectorAll('.carousel-item').forEach(c => {
+        c.style.flex = `0 0 ${cardW}px`;
+      });
+    }
+
+    window.addEventListener('resize', () => {
+      setCardWidths();
+      updateCarousel();
+    });
+
+    /* ── Carousel logic ────────────────────────── */
+    function slideCarousel(dir) {
+      const cards  = document.querySelectorAll('.carousel-item');
+      const maxOff = Math.max(0, cards.length - VISIBLE);
+      carouselOffset = Math.max(0, Math.min(carouselOffset + dir, maxOff));
+      updateCarousel();
+    }
+
+    function updateCarousel() {
+      const cards  = document.querySelectorAll('.carousel-item');
+      if (!cards.length) return;
+      const maxOff = Math.max(0, cards.length - VISIBLE);
+      carouselOffset = Math.max(0, Math.min(carouselOffset, maxOff));
+
+      const clip  = document.querySelector('.carousel-track-clip');
+      const clipW = clip ? clip.offsetWidth : 800;
+      const cardW = Math.floor((clipW - VISIBLE * GAP) / CARDS_SHOWN);
+      const stepW = cardW + GAP;
+
+      let translateX;
+      if (carouselOffset >= maxOff && maxOff > 0) {
+        // Snap last card flush to the right edge — no empty space
+        translateX = Math.max(0, cards.length * stepW - GAP - clipW);
+      } else {
+        translateX = carouselOffset * stepW;
+      }
+
+      document.getElementById('carousel-track').style.transform =
+        `translateX(-${translateX}px)`;
+      document.getElementById('btn-prev').disabled = carouselOffset === 0;
+      document.getElementById('btn-next').disabled = carouselOffset >= maxOff;
+    }
+  </script>
+</body>
+</html>
