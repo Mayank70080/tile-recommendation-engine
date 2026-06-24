@@ -437,6 +437,12 @@ def passes_placement_constraint(v, placement, room):
     size_str = v["size"]
     finish   = v["finish"]
 
+    # A tile with any side larger than 1200mm is never used in the bathroom
+    # (any placement), so it is also never recommended there.
+    if room == "bathroom":
+        bw, bh = parse_size(size_str)
+        if bw > 1200 or bh > 1200:
+            return False
 
     if placement == "floor":
         if app_type not in ("floor", "both"): return False
@@ -834,18 +840,25 @@ def eligible_rooms(v):
     is_wall = get_input_group(cat, v["application_type"]).startswith("wall_")
     glossy_blocks_bathroom = glossy and not is_wall
 
+    # A tile with any side larger than 1200mm is barred from the bathroom: it
+    # generates no bathroom recommendations (and is excluded from bathroom pools
+    # in passes_placement_constraint).
+    bw, bh = parse_size(v["size"])
+    oversize_blocks_bathroom = bw > 1200 or bh > 1200
+    bath_blocked = glossy_blocks_bathroom or oversize_blocks_bathroom
+
     # Highlighter input tiles must have Kitchen in application to get any recommendations
     if cat == "highlighter" and not other and not has_room(app_list, "Kitchen"):
         return set()
 
     if cat in KITCHEN_EXCLUDED_INPUT:
         # Terrazzo / mosaic → bathroom only
-        if glossy_blocks_bathroom: return set()
+        if bath_blocked: return set()
         if other or has_room(app_list, "Bathroom"): return {"bathroom"}
         return set()
 
     rooms = set()
-    if not glossy_blocks_bathroom:
+    if not bath_blocked:
         if other or has_room(app_list, "Bathroom"): rooms.add("bathroom")
     if other or has_room(app_list, "Kitchen"): rooms.add("kitchen")
     return rooms
