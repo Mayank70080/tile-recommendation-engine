@@ -231,12 +231,26 @@ PAIRING_TABLE = {
                      "base":  [("marble", 3), ("terrazzo", 2)]},
         "kitchen":  {"floor": [("plain", 3), ("marble_endless", 5), ("rustic", 2)]},
     },
+    # ── Quartz ────────────────────────────────────────────────────────────────
+    # Kitchen backsplash only: 3 4x2 tiles (same colour as the input) + 6 subway
+    # (3 subway / 3 subway look, complementary colour). No bathroom recs.
+    "kitchen_quartz": {
+        "bathroom": None,
+        "kitchen":  {"backsplash": [("4x2_any", 3), ("subway", 6)]},
+    },
 }
 
 # Placement group → the pool placement to draw from. Group names already match
 # placement names, so this is identity, but kept explicit for clarity.
 BATHROOM_GROUPS = ("floor", "base", "highlighter")
 KITCHEN_GROUPS  = ("floor", "backsplash")
+
+# Categories that must be drawn in the SAME colour as the input (per input group)
+# instead of via the normal complementary colour-pairing. Used per-slot in
+# generate_room. e.g. quartz's 4x2 backsplash tiles match the input's own colour.
+SAME_COLOR_CATS = {
+    "kitchen_quartz": {"4x2_any"},
+}
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -292,6 +306,10 @@ def get_input_group(category, application_type=""):
     # Monochrome is its own floor input group
     if cat == "monochrome":
         return "floor_monochrome"
+
+    # Quartz: kitchen-backsplash-only input group
+    if cat == "quartz":
+        return "kitchen_quartz"
 
     # Explicit wall/highlighter categories
     if cat in SET_A_CATEGORIES:
@@ -847,6 +865,11 @@ def eligible_rooms(v):
     oversize_blocks_bathroom = bw > 1200 or bh > 1200
     bath_blocked = glossy_blocks_bathroom or oversize_blocks_bathroom
 
+    # Quartz: kitchen backsplash recommendations only.
+    if cat == "quartz":
+        if other or has_room(app_list, "Kitchen"): return {"kitchen"}
+        return set()
+
     # Highlighter input tiles must have Kitchen in application to get any recommendations
     if cat == "highlighter" and not other and not has_room(app_list, "Kitchen"):
         return set()
@@ -974,6 +997,11 @@ def generate_room(input_handle, input_group, room, room_mix, top_shades,
 
     # Moroccan: hard-filter colour to the input's same-base-colour shade list.
     strict_shades = top_shades if input_group == "wall_moroccan" else None
+    # Categories (for this input group) drawn in the SAME colour as the input.
+    same_color_cats = SAME_COLOR_CATS.get(input_group, set())
+    # The input's own same-base-colour neighbourhood. For non-moroccan inputs the
+    # `input_shade` arg is the real primary shade, so this is the "same colour" set.
+    same_shades = get_moroccan_shades(input_shade)
 
     out = {}
     for group, mix in room_mix.items():
@@ -984,23 +1012,36 @@ def generate_room(input_handle, input_group, room, room_mix, top_shades,
             # Fresh family_counts per slot so one category's picks don't block
             # another category's family budget.
             family_counts = {}
+            # Per-slot colour mode: same-colour slots restrict to the input's own
+            # shade neighbourhood and must NOT exclude the input's shade; every
+            # other slot uses the normal (complementary / moroccan) behaviour.
+            if cat in same_color_cats:
+                slot_strict     = same_shades
+                slot_cat_shades = same_shades
+                slot_excl       = ""
+            else:
+                slot_strict     = strict_shades
+                slot_cat_shades = None   # computed per-cat below
+                slot_excl       = input_shade
+
             if cat == "subway":
                 recs.extend(_pick_subway_slot(
                     count, room, placement, top_shades, input_shade, co_handles,
-                    used, rng, global_freq, pool_index, strict_shades))
+                    used, rng, global_freq, pool_index, slot_strict))
                 continue
 
             pool_entry = resolve_pool(cat, room, placement, pool_index)
             if not pool_entry or not pool_entry["all"]: continue
-            cat_shades = _maybe_navy_front(top_shades, input_shade, cat)
+            if slot_cat_shades is None:
+                slot_cat_shades = _maybe_navy_front(top_shades, input_shade, cat)
             gallery    = pick_gallery(pool_entry, count, co_handles, used,
-                                      family_counts, global_freq, input_shade, strict_shades)
+                                      family_counts, global_freq, slot_excl, slot_strict)
             recs.extend(gallery)
             remaining = count - len(gallery)
             if remaining > 0:
                 recs.extend(pick_for_category(
-                    pool_entry, remaining, cat_shades, used,
-                    family_counts, rng, global_freq, input_shade, strict_shades))
+                    pool_entry, remaining, slot_cat_shades, used,
+                    family_counts, rng, global_freq, slot_excl, slot_strict))
 
         # ── Backfill this group to its target from the group's own categories ──
         shortfall = group_target - len(recs)
